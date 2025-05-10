@@ -15,6 +15,8 @@
  */
 package com.example.lunchtray
 
+import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -23,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.NavHostController
@@ -31,12 +34,14 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.lunchtray.datasource.DataSource
 import com.example.lunchtray.datasource.ScreenRoute
+import com.example.lunchtray.model.OrderUiState
 import com.example.lunchtray.ui.AccompanimentMenuScreen
 import com.example.lunchtray.ui.CheckoutScreen
 import com.example.lunchtray.ui.EntreeMenuScreen
 import com.example.lunchtray.ui.OrderViewModel
 import com.example.lunchtray.ui.SideDishMenuScreen
 import com.example.lunchtray.ui.StartOrderScreen
+import com.example.lunchtray.ui.formatPrice
 
 // TODO: Screen enum
 
@@ -101,9 +106,10 @@ fun LunchTrayApp(
                 )
             }
             composable(route = ScreenRoute.Checkout.name) {
+                val context = LocalContext.current;
                 CheckoutScreen(
                     orderUiState = uiState,
-                    onNextButtonClicked = { },
+                    onNextButtonClicked = { share(context, uiState)},
                     onCancelButtonClicked = { cancel(viewModel, navController) },
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -114,4 +120,30 @@ fun LunchTrayApp(
 private fun cancel(viewModel: OrderViewModel, navHostController: NavHostController) {
     viewModel.resetOrder();
     navHostController.popBackStack(ScreenRoute.Start.name, inclusive = false);
+}
+
+private fun share(context: Context, uiState: OrderUiState) {
+    val summary = context.getString(
+        R.string.order_share,
+        uiState.entree?.name ?: "",
+        uiState.entree?.getFormattedPrice() ?: "",
+        uiState.sideDish?.name ?: "",
+        uiState.sideDish?.getFormattedPrice() ?: "",
+        uiState.accompaniment?.name ?: "",
+        uiState.accompaniment?.getFormattedPrice() ?: "",
+        uiState.itemTotalPrice.formatPrice(),
+        uiState.orderTax.formatPrice(),
+        uiState.orderTotalPrice.formatPrice()
+    );
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.order_summary))
+        putExtra(Intent.EXTRA_TEXT, summary)
+    }
+    context.startActivity(
+        Intent.createChooser(
+            intent,
+            context.getString(R.string.order_summary)
+        )
+    )
 }
