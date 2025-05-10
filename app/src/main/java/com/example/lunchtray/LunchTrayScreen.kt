@@ -15,13 +15,28 @@
  */
 package com.example.lunchtray
 
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.NavHost
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.example.lunchtray.datasource.DataSource
+import com.example.lunchtray.datasource.ScreenRoute
+import com.example.lunchtray.ui.AccompanimentMenuScreen
+import com.example.lunchtray.ui.CheckoutScreen
+import com.example.lunchtray.ui.EntreeMenuScreen
 import com.example.lunchtray.ui.OrderViewModel
+import com.example.lunchtray.ui.SideDishMenuScreen
+import com.example.lunchtray.ui.StartOrderScreen
 
 // TODO: Screen enum
 
@@ -29,11 +44,16 @@ import com.example.lunchtray.ui.OrderViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LunchTrayApp() {
+fun LunchTrayApp(
+
+) {
     // TODO: Create Controller and initialization
 
     // Create ViewModel
     val viewModel: OrderViewModel = viewModel()
+    val navController: NavHostController = rememberNavController();
+    val backStackEntry by  navController.currentBackStackEntryAsState();
+    val currentScreen = ScreenRoute.valueOf(backStackEntry?.destination?.route ?: ScreenRoute.Start.name)
 
     Scaffold(
         topBar = {
@@ -42,6 +62,56 @@ fun LunchTrayApp() {
     ) { innerPadding ->
         val uiState by viewModel.uiState.collectAsState()
 
-        // TODO: Navigation host
+        NavHost(
+            navController = navController,
+            startDestination = ScreenRoute.Start.name,
+            modifier = Modifier.padding(innerPadding),
+        ) {
+            composable(route = ScreenRoute.Start.name) {
+                StartOrderScreen(
+                    onStartOrderButtonClicked = {navController.navigate(ScreenRoute.EntreeMenu.name)},
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            composable(route = ScreenRoute.EntreeMenu.name) {
+                EntreeMenuScreen(
+                    options = DataSource.entreeMenuItems,
+                    onCancelButtonClicked = { cancel(viewModel, navController) },
+                    onSelectionChanged = { viewModel.updateEntree(it)},
+                    onNextButtonClicked = { navController.navigate(ScreenRoute.SideDishMenu.name) },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            composable(route = ScreenRoute.SideDishMenu.name) {
+                SideDishMenuScreen(
+                    options = DataSource.sideDishMenuItems,
+                    onSelectionChanged = { viewModel.updateSideDish(it)},
+                    onNextButtonClicked = { navController.navigate(ScreenRoute.AccompanimentMenu.name)},
+                    onCancelButtonClicked = { cancel(viewModel, navController) },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            composable(route = ScreenRoute.AccompanimentMenu.name) {
+                AccompanimentMenuScreen(
+                    options = DataSource.accompanimentMenuItems,
+                    onSelectionChanged = { viewModel.updateAccompaniment(it) },
+                    onCancelButtonClicked = { cancel(viewModel, navController) },
+                    onNextButtonClicked = { navController.navigate(ScreenRoute.Checkout.name) },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            composable(route = ScreenRoute.Checkout.name) {
+                CheckoutScreen(
+                    orderUiState = uiState,
+                    onNextButtonClicked = { },
+                    onCancelButtonClicked = { cancel(viewModel, navController) },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
     }
+}
+private fun cancel(viewModel: OrderViewModel, navHostController: NavHostController) {
+    viewModel.resetOrder();
+    navHostController.popBackStack(ScreenRoute.Start.name, inclusive = false);
 }
